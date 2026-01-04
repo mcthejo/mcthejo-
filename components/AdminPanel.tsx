@@ -53,8 +53,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // 이미지 압축 및 리사이징 함수 (localStorage 용량 확보 목적)
-  const resizeImage = (file: File, maxWidth = 1200, maxHeight = 1200): Promise<string> => {
+  // 이미지 최적화 함수: 화질을 유지하면서 용량 효율화
+  const resizeImage = (file: File, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -79,8 +79,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7)); // 0.7 퀄리티로 JPEG 압축
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+          }
+          resolve(canvas.toDataURL('image/jpeg', 0.85)); // 0.85 퀄리티로 상향
         };
         img.src = e.target?.result as string;
       };
@@ -93,7 +97,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!files) return;
 
     const fileArray = Array.from(files);
-    // 최대 50장 제한
     if (portfolioForm.images.length + fileArray.length > 50) {
       alert("포트폴리오당 최대 50장까지만 업로드 가능합니다.");
       return;
@@ -106,6 +109,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setPortfolioForm(prev => ({ ...prev, images: [...prev.images, ...resizedImages] }));
     } catch (err) {
       console.error(err);
+      alert("이미지 처리 중 오류가 발생했습니다.");
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -117,7 +121,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!file) return;
     setIsProcessing(true);
     try {
-      const resized = await resizeImage(file, 1920, 1080);
+      const resized = await resizeImage(file, 2000, 1200);
       setConfigForm(prev => ({ ...prev, heroImage: resized }));
     } finally {
       setIsProcessing(false);
@@ -129,7 +133,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!file) return;
     setIsProcessing(true);
     try {
-      const resized = await resizeImage(file, 800, 1000);
+      const resized = await resizeImage(file, 1000, 1200);
       setAboutForm(prev => ({ ...prev, profileImage: resized }));
     } finally {
       setIsProcessing(false);
@@ -214,7 +218,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isProcessing && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-nature-green border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="font-bold text-stone-600 animate-pulse">이미지 처리 중...</p>
+          <p className="font-bold text-stone-600 animate-pulse">Large Data Syncing...</p>
         </div>
       )}
 
@@ -254,7 +258,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label htmlFor="p-upload" className="block w-full py-10 bg-stone-50 border-2 border-dashed rounded-xl text-center cursor-pointer hover:border-nature-green transition-theme">
                     <span className="text-stone-400 text-xs font-bold">이미지 선택 (여러 장 가능)</span>
                   </label>
-                  <div className="grid grid-cols-5 gap-2 mt-4 max-h-[200px] overflow-y-auto p-1">
+                  <div className="grid grid-cols-5 gap-2 mt-4 max-h-[300px] overflow-y-auto p-1">
                     {portfolioForm.images.map((img, idx) => (
                       <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
                         <img src={img} className="w-full h-full object-cover" />
@@ -311,7 +315,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </td>
                       <td className="px-8 py-6 text-right space-x-4">
                         <button onClick={() => handlePortfolioEdit(item)} className="text-sea-blue font-black uppercase text-[10px] underline">Edit</button>
-                        <button onClick={() => onDeleteItem(item.id)} className="text-red-400 font-black uppercase text-[10px] underline">Del</button>
+                        <button onClick={() => {if(window.confirm('삭제하시겠습니까?')) onDeleteItem(item.id)}} className="text-red-400 font-black uppercase text-[10px] underline">Del</button>
                       </td>
                     </tr>
                   ))}
@@ -327,7 +331,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <h3 className="text-xl font-black mb-8 border-b-2 border-stone-100 pb-4">1. 홈페이지 메인(Hero) 설정</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-4">메인 배경 사진</label>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-4">메인 배경 사진 (권장 2000px 이상)</label>
                   <div 
                     className="aspect-video bg-stone-50 rounded-2xl overflow-hidden cursor-pointer border-2 border-dashed border-stone-200 group"
                     onClick={() => heroInputRef.current?.click()}
@@ -379,12 +383,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="mt-8">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">작가 상세 소개</label>
-                <textarea value={aboutContent.philosophyDescription} onChange={e => setAboutForm({...aboutForm, philosophyDescription: e.target.value})} className="w-full p-6 bg-stone-50 rounded-2xl font-medium text-stone-600 h-64 leading-relaxed" />
+                <textarea value={aboutForm.philosophyDescription} onChange={e => setAboutForm({...aboutForm, philosophyDescription: e.target.value})} className="w-full p-6 bg-stone-50 rounded-2xl font-medium text-stone-600 h-64 leading-relaxed" />
               </div>
             </div>
 
             <button type="submit" className="w-full bg-stone-900 text-white py-6 rounded-2xl font-black uppercase tracking-widest text-[12px] shadow-2xl hover:bg-nature-green transition-theme">
-              전체 설정 업데이트
+              사이트 및 프로필 설정 전체 업데이트
             </button>
           </form>
         </div>

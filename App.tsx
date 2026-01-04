@@ -5,61 +5,58 @@ import PortfolioGrid from './components/PortfolioGrid.tsx';
 import AdminPanel from './components/AdminPanel.tsx';
 import { INITIAL_PORTFOLIO, INITIAL_ABOUT, INITIAL_SITE_CONFIG } from './constants.ts';
 import { PortfolioItem, Category, AboutContent, SiteConfig } from './types.ts';
+import { storage } from './storage.ts';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState('home');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [aboutContent, setAboutContent] = useState<AboutContent>(INITIAL_ABOUT);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_SITE_CONFIG);
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 (IndexedDB)
   useEffect(() => {
-    try {
-      const savedPortfolio = localStorage.getItem('record_portfolio');
-      if (savedPortfolio) {
-        setPortfolioItems(JSON.parse(savedPortfolio));
-      } else {
+    const initApp = async () => {
+      try {
+        await storage.init();
+        
+        const [savedPortfolio, savedAbout, savedConfig] = await Promise.all([
+          storage.get('record_portfolio'),
+          storage.get('record_about'),
+          storage.get('record_config')
+        ]);
+
+        if (savedPortfolio) setPortfolioItems(savedPortfolio);
+        else setPortfolioItems(INITIAL_PORTFOLIO);
+
+        if (savedAbout) setAboutContent(savedAbout);
+        if (savedConfig) setSiteConfig(savedConfig);
+      } catch (e) {
+        console.error("데이터 로드 중 오류 발생:", e);
         setPortfolioItems(INITIAL_PORTFOLIO);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const savedAbout = localStorage.getItem('record_about');
-      if (savedAbout) setAboutContent(JSON.parse(savedAbout));
-
-      const savedConfig = localStorage.getItem('record_config');
-      if (savedConfig) setSiteConfig(JSON.parse(savedConfig));
-    } catch (e) {
-      console.error("데이터 로드 중 오류 발생:", e);
-      setPortfolioItems(INITIAL_PORTFOLIO);
-    }
+    initApp();
   }, []);
 
-  // 데이터 저장 로직 (에러 핸들링 포함)
-  const safeSave = (key: string, data: any) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        alert("저장 용량이 초과되었습니다. 이미지 크기를 줄이거나 불필요한 사진을 삭제해 주세요.");
-      } else {
-        console.error("저장 중 알 수 없는 오류 발생:", e);
-      }
+  // 데이터 변경 시 자동 저장
+  useEffect(() => {
+    if (!isLoading && portfolioItems.length > 0) {
+      storage.set('record_portfolio', portfolioItems);
     }
-  };
+  }, [portfolioItems, isLoading]);
 
   useEffect(() => {
-    if (portfolioItems.length > 0) {
-      safeSave('record_portfolio', portfolioItems);
-    }
-  }, [portfolioItems]);
+    if (!isLoading) storage.set('record_about', aboutContent);
+  }, [aboutContent, isLoading]);
 
   useEffect(() => {
-    safeSave('record_about', aboutContent);
-  }, [aboutContent]);
-
-  useEffect(() => {
-    safeSave('record_config', siteConfig);
-  }, [siteConfig]);
+    if (!isLoading) storage.set('record_config', siteConfig);
+  }, [siteConfig, isLoading]);
 
   const handleAddItem = (item: PortfolioItem) => {
     setPortfolioItems([item, ...portfolioItems]);
@@ -72,6 +69,15 @@ const App: React.FC = () => {
   const handleDeleteItem = (id: string) => {
     setPortfolioItems(portfolioItems.filter(i => i.id !== id));
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-stone-50">
+        <div className="w-8 h-8 border-4 border-nature-green border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-stone-400 text-xs font-bold tracking-widest uppercase">Archive Loading</p>
+      </div>
+    );
+  }
 
   const renderSection = () => {
     if (activeSection === 'admin') {
