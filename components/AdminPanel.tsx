@@ -22,6 +22,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
@@ -52,38 +53,87 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  // 이미지 압축 및 리사이징 함수 (localStorage 용량 확보 목적)
+  const resizeImage = (file: File, maxWidth = 1200, maxHeight = 1200): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7)); // 0.7 퀄리티로 JPEG 압축
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handlePortfolioFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     const fileArray = Array.from(files);
-    const base64Promises = fileArray.map((file: File) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-    });
+    // 최대 50장 제한
+    if (portfolioForm.images.length + fileArray.length > 50) {
+      alert("포트폴리오당 최대 50장까지만 업로드 가능합니다.");
+      return;
+    }
 
-    const base64Images = await Promise.all(base64Promises);
-    setPortfolioForm(prev => ({ ...prev, images: [...prev.images, ...base64Images] }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsProcessing(true);
+    try {
+      const resizedPromises = fileArray.map(file => resizeImage(file));
+      const resizedImages = await Promise.all(resizedPromises);
+      setPortfolioForm(prev => ({ ...prev, images: [...prev.images, ...resizedImages] }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleHeroFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setConfigForm(prev => ({ ...prev, heroImage: reader.result as string }));
-    reader.readAsDataURL(file);
+    setIsProcessing(true);
+    try {
+      const resized = await resizeImage(file, 1920, 1080);
+      setConfigForm(prev => ({ ...prev, heroImage: resized }));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleProfileFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setAboutForm(prev => ({ ...prev, profileImage: reader.result as string }));
-    reader.readAsDataURL(file);
+    setIsProcessing(true);
+    try {
+      const resized = await resizeImage(file, 800, 1000);
+      setAboutForm(prev => ({ ...prev, profileImage: resized }));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const removePortfolioImage = (index: number) => {
@@ -161,6 +211,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto py-24 px-6 fade-in">
+      {isProcessing && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 border-nature-green border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="font-bold text-stone-600 animate-pulse">이미지 처리 중...</p>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 border-b-4 border-stone-900 pb-8 gap-8">
         <div>
           <span className="text-xs font-black tracking-[0.4em] text-sea-blue uppercase mb-4 block">Control Center</span>
@@ -189,16 +246,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <h3 className="text-xl font-bold uppercase mb-8">{editingItem ? '수정' : '추가'}</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">사진</label>
+                  <div className="flex justify-between items-end mb-2">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400">사진 (최대 50장)</label>
+                    <span className="text-[10px] font-bold text-nature-green">{portfolioForm.images.length}/50</span>
+                  </div>
                   <input type="file" ref={fileInputRef} multiple accept="image/*" onChange={handlePortfolioFileChange} className="hidden" id="p-upload" />
                   <label htmlFor="p-upload" className="block w-full py-10 bg-stone-50 border-2 border-dashed rounded-xl text-center cursor-pointer hover:border-nature-green transition-theme">
-                    <span className="text-stone-400 text-xs font-bold">이미지 선택</span>
+                    <span className="text-stone-400 text-xs font-bold">이미지 선택 (여러 장 가능)</span>
                   </label>
-                  <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="grid grid-cols-5 gap-2 mt-4 max-h-[200px] overflow-y-auto p-1">
                     {portfolioForm.images.map((img, idx) => (
                       <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
                         <img src={img} className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => removePortfolioImage(idx)} className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 text-[10px] font-bold">삭제</button>
+                        <button type="button" onClick={() => removePortfolioImage(idx)} className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 text-[10px] font-bold flex items-center justify-center">삭제</button>
                       </div>
                     ))}
                   </div>
@@ -263,7 +323,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       ) : (
         <div className="max-w-4xl mx-auto space-y-12">
           <form onSubmit={handleSettingsSubmit} className="bg-white p-16 rounded-3xl shadow-2xl border space-y-16">
-            {/* Hero Image Section */}
             <div>
               <h3 className="text-xl font-black mb-8 border-b-2 border-stone-100 pb-4">1. 홈페이지 메인(Hero) 설정</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -290,7 +349,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
 
-            {/* About Artist Section */}
             <div>
               <h3 className="text-xl font-black mb-8 border-b-2 border-stone-100 pb-4">2. 작가 프로필(About) 설정</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -321,7 +379,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="mt-8">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">작가 상세 소개</label>
-                <textarea value={aboutForm.philosophyDescription} onChange={e => setAboutForm({...aboutForm, philosophyDescription: e.target.value})} className="w-full p-6 bg-stone-50 rounded-2xl font-medium text-stone-600 h-64 leading-relaxed" />
+                <textarea value={aboutContent.philosophyDescription} onChange={e => setAboutForm({...aboutForm, philosophyDescription: e.target.value})} className="w-full p-6 bg-stone-50 rounded-2xl font-medium text-stone-600 h-64 leading-relaxed" />
               </div>
             </div>
 

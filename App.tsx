@@ -13,33 +13,52 @@ const App: React.FC = () => {
   const [aboutContent, setAboutContent] = useState<AboutContent>(INITIAL_ABOUT);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_SITE_CONFIG);
 
+  // 초기 데이터 로드
   useEffect(() => {
-    const savedPortfolio = localStorage.getItem('record_portfolio');
-    if (savedPortfolio) {
-      setPortfolioItems(JSON.parse(savedPortfolio));
-    } else {
+    try {
+      const savedPortfolio = localStorage.getItem('record_portfolio');
+      if (savedPortfolio) {
+        setPortfolioItems(JSON.parse(savedPortfolio));
+      } else {
+        setPortfolioItems(INITIAL_PORTFOLIO);
+      }
+
+      const savedAbout = localStorage.getItem('record_about');
+      if (savedAbout) setAboutContent(JSON.parse(savedAbout));
+
+      const savedConfig = localStorage.getItem('record_config');
+      if (savedConfig) setSiteConfig(JSON.parse(savedConfig));
+    } catch (e) {
+      console.error("데이터 로드 중 오류 발생:", e);
       setPortfolioItems(INITIAL_PORTFOLIO);
     }
-
-    const savedAbout = localStorage.getItem('record_about');
-    if (savedAbout) setAboutContent(JSON.parse(savedAbout));
-
-    const savedConfig = localStorage.getItem('record_config');
-    if (savedConfig) setSiteConfig(JSON.parse(savedConfig));
   }, []);
+
+  // 데이터 저장 로직 (에러 핸들링 포함)
+  const safeSave = (key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        alert("저장 용량이 초과되었습니다. 이미지 크기를 줄이거나 불필요한 사진을 삭제해 주세요.");
+      } else {
+        console.error("저장 중 알 수 없는 오류 발생:", e);
+      }
+    }
+  };
 
   useEffect(() => {
     if (portfolioItems.length > 0) {
-      localStorage.setItem('record_portfolio', JSON.stringify(portfolioItems));
+      safeSave('record_portfolio', portfolioItems);
     }
   }, [portfolioItems]);
 
   useEffect(() => {
-    localStorage.setItem('record_about', JSON.stringify(aboutContent));
+    safeSave('record_about', aboutContent);
   }, [aboutContent]);
 
   useEffect(() => {
-    localStorage.setItem('record_config', JSON.stringify(siteConfig));
+    safeSave('record_config', siteConfig);
   }, [siteConfig]);
 
   const handleAddItem = (item: PortfolioItem) => {
@@ -74,12 +93,12 @@ const App: React.FC = () => {
       case 'home':
         return (
           <div className="fade-in">
-            {/* Hero Section */}
             <section className="relative h-[92vh] flex items-center justify-center overflow-hidden">
               <img 
                 src={siteConfig.heroImage} 
                 alt="Main Hero"
                 className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).src = INITIAL_SITE_CONFIG.heroImage; }}
               />
               <div className="absolute inset-0 bg-black/40"></div>
               <div className="relative z-10 text-center text-white px-6">
@@ -98,7 +117,6 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* Category Preview */}
             <section className="py-32 max-w-7xl mx-auto px-6">
               <div className="mb-20 text-center">
                 <span className="text-xs font-black tracking-[0.3em] text-sea-blue uppercase mb-4 block">Archives</span>
