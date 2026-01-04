@@ -3,21 +3,29 @@ import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout.tsx';
 import PortfolioGrid from './components/PortfolioGrid.tsx';
 import AdminPanel from './components/AdminPanel.tsx';
-import { INITIAL_PORTFOLIO } from './constants.ts';
-import { PortfolioItem, Category } from './types.ts';
+import { INITIAL_PORTFOLIO, INITIAL_ABOUT, INITIAL_SITE_CONFIG } from './constants.ts';
+import { PortfolioItem, Category, AboutContent, SiteConfig } from './types.ts';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState('home');
   const [isAdmin, setIsAdmin] = useState(false);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [aboutContent, setAboutContent] = useState<AboutContent>(INITIAL_ABOUT);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_SITE_CONFIG);
 
   useEffect(() => {
-    const saved = localStorage.getItem('record_portfolio');
-    if (saved) {
-      setPortfolioItems(JSON.parse(saved));
+    const savedPortfolio = localStorage.getItem('record_portfolio');
+    if (savedPortfolio) {
+      setPortfolioItems(JSON.parse(savedPortfolio));
     } else {
       setPortfolioItems(INITIAL_PORTFOLIO);
     }
+
+    const savedAbout = localStorage.getItem('record_about');
+    if (savedAbout) setAboutContent(JSON.parse(savedAbout));
+
+    const savedConfig = localStorage.getItem('record_config');
+    if (savedConfig) setSiteConfig(JSON.parse(savedConfig));
   }, []);
 
   useEffect(() => {
@@ -25,6 +33,14 @@ const App: React.FC = () => {
       localStorage.setItem('record_portfolio', JSON.stringify(portfolioItems));
     }
   }, [portfolioItems]);
+
+  useEffect(() => {
+    localStorage.setItem('record_about', JSON.stringify(aboutContent));
+  }, [aboutContent]);
+
+  useEffect(() => {
+    localStorage.setItem('record_config', JSON.stringify(siteConfig));
+  }, [siteConfig]);
 
   const handleAddItem = (item: PortfolioItem) => {
     setPortfolioItems([item, ...portfolioItems]);
@@ -45,7 +61,11 @@ const App: React.FC = () => {
           items={portfolioItems} 
           onAddItem={handleAddItem}
           onUpdateItem={handleUpdateItem}
-          onDeleteItem={handleDeleteItem} 
+          onDeleteItem={handleDeleteItem}
+          aboutContent={aboutContent}
+          onUpdateAbout={setAboutContent}
+          siteConfig={siteConfig}
+          onUpdateConfig={setSiteConfig}
         />
       );
     }
@@ -57,21 +77,21 @@ const App: React.FC = () => {
             {/* Hero Section */}
             <section className="relative h-[92vh] flex items-center justify-center overflow-hidden">
               <img 
-                src="https://images.unsplash.com/photo-1596401057633-54a8fe8ef647?q=80&w=2400&auto=format&fit=crop" 
-                alt="Majestic Korean Mountain Landscape"
+                src={siteConfig.heroImage} 
+                alt="Main Hero"
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/30"></div>
+              <div className="absolute inset-0 bg-black/40"></div>
               <div className="relative z-10 text-center text-white px-6">
-                <h1 className="text-4xl md:text-7xl font-extrabold mb-8 leading-[1.15] tracking-tight">
-                  한국의 풍경과 <br /> 사람을 기록합니다.
+                <h1 className="text-4xl md:text-7xl font-extrabold mb-8 leading-[1.15] tracking-tight whitespace-pre-line">
+                  {siteConfig.heroTitle}
                 </h1>
-                <p className="text-lg md:text-xl font-medium mb-12 tracking-wide opacity-90 max-w-2xl mx-auto drop-shadow-md">
-                  지역의 공기, 음식의 온기, 그리고 사람의 표정을 담는 <br className="hidden md:block" /> 취미 사진가 mcthejo 입니다.
+                <p className="text-lg md:text-xl font-medium mb-12 tracking-wide opacity-90 max-w-2xl mx-auto drop-shadow-md whitespace-pre-line">
+                  {siteConfig.heroSubtitle}
                 </p>
                 <button 
                   onClick={() => setActiveSection('contact')}
-                  className="bg-black text-white px-12 py-5 rounded-full text-sm font-bold tracking-[0.2em] hover:bg-stone-800 transition-theme shadow-lg uppercase"
+                  className="bg-white text-black px-12 py-5 rounded-full text-sm font-bold tracking-[0.2em] hover:bg-stone-100 transition-theme shadow-lg uppercase"
                 >
                   인물 스냅 촬영 문의하기
                 </button>
@@ -93,7 +113,7 @@ const App: React.FC = () => {
                       className="group cursor-pointer"
                       onClick={() => setActiveSection('portfolio')}
                     >
-                      <div className="aspect-[3/4] overflow-hidden bg-stone-100 mb-6 relative">
+                      <div className="aspect-[3/4] overflow-hidden bg-stone-100 mb-6 relative rounded-sm">
                         <img 
                           src={item?.images[0] || `https://images.unsplash.com/photo-1542353436-312f0295493c?q=80&w=800&auto=format&fit=crop`} 
                           alt={cat}
@@ -118,26 +138,24 @@ const App: React.FC = () => {
           <section className="py-32 max-w-5xl mx-auto px-6 fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
               <div className="aspect-[4/5] overflow-hidden rounded-lg shadow-2xl relative">
-                <img src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1200&auto=format&fit=crop" alt="mcthejo" className="w-full h-full object-cover" />
+                <img src={aboutContent.profileImage} alt={aboutContent.name} className="w-full h-full object-cover" />
                 <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur px-6 py-4">
                   <p className="text-xs font-black tracking-widest text-nature-green uppercase">Photographer</p>
-                  <p className="text-xl font-bold">mcthejo</p>
+                  <p className="text-xl font-bold">{aboutContent.name}</p>
                 </div>
               </div>
               <div className="space-y-10">
                 <div>
                   <span className="text-xs font-black tracking-[0.3em] text-sea-blue uppercase mb-4 block">Philosophy</span>
-                  <h2 className="text-4xl font-bold tracking-tight leading-tight">기록하는 마음으로 <br />오늘을 담습니다.</h2>
+                  <h2 className="text-4xl font-bold tracking-tight leading-tight whitespace-pre-line">{aboutContent.philosophyTitle}</h2>
                 </div>
-                <div className="space-y-6 text-stone-600 leading-relaxed font-medium">
-                  <p>카메라로 기록하는 것을 좋아합니다.</p>
-                  <p>특별한 연출보다는 그 순간의 공기와 표정을 담는 촬영을 지향합니다. 누군가에게 보여주기 위한 사진보다는, 나중에 다시 보았을 때 그날의 감정이 고스란히 떠오르는 사진을 찍고 싶습니다.</p>
-                  <p>취미로 시작했지만, 누군가에게는 오래 남을 기록이 되길 바랍니다. 한국의 골목길, 시장의 시끄러움, 그리고 그 속에 살아가는 사람들의 진솔한 미소를 사랑합니다.</p>
+                <div className="space-y-6 text-stone-600 leading-relaxed font-medium whitespace-pre-wrap">
+                  {aboutContent.philosophyDescription}
                 </div>
                 <div className="pt-8 border-t border-stone-100">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-300 mb-6">Style Keywords</h4>
                   <div className="flex flex-wrap gap-3">
-                    {['자연광', '일상', '기록', '과하지 않은 보정', '골목길'].map(tag => (
+                    {aboutContent.keywords.map(tag => (
                       <span key={tag} className="px-5 py-2 bg-stone-50 text-stone-700 text-xs font-bold rounded-full border border-stone-100 hover:border-nature-green transition-theme">#{tag}</span>
                     ))}
                   </div>
@@ -213,7 +231,7 @@ const App: React.FC = () => {
                 <h2 className="text-5xl font-bold tracking-tight mb-8">Contact</h2>
                 <p className="text-stone-500 font-medium text-lg leading-relaxed mb-16">
                   기록하고 싶은 순간이 있다면 함께 이야기하고 싶습니다. <br />
-                  mcthejo의 시선으로 당신의 오늘을 담아드릴게요.
+                  {aboutContent.name}의 시선으로 당신의 오늘을 담아드릴게요.
                 </p>
                 
                 <div className="space-y-12">
@@ -292,6 +310,7 @@ const App: React.FC = () => {
       setActiveSection={setActiveSection}
       isAdmin={activeSection === 'admin'}
       setIsAdmin={(val) => val && setActiveSection('admin')}
+      siteName={aboutContent.name}
     >
       {renderSection()}
     </Layout>

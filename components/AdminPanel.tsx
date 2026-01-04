@@ -1,27 +1,47 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Category, PortfolioItem } from '../types';
+import { Category, PortfolioItem, AboutContent, SiteConfig } from '../types';
 
 interface AdminPanelProps {
   items: PortfolioItem[];
   onAddItem: (item: PortfolioItem) => void;
   onUpdateItem: (item: PortfolioItem) => void;
   onDeleteItem: (id: string) => void;
+  aboutContent: AboutContent;
+  onUpdateAbout: (content: AboutContent) => void;
+  siteConfig: SiteConfig;
+  onUpdateConfig: (config: SiteConfig) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem, onDeleteItem }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  items, onAddItem, onUpdateItem, onDeleteItem, 
+  aboutContent, onUpdateAbout, 
+  siteConfig, onUpdateConfig 
+}) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [formData, setFormData] = useState({
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const heroInputRef = useRef<HTMLInputElement>(null);
+  const profileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [portfolioForm, setPortfolioForm] = useState({
     images: [] as string[],
     category: Category.LANDSCAPE,
     title: '',
     location: '',
     year: new Date().getFullYear().toString()
   });
+
+  const [aboutForm, setAboutForm] = useState<AboutContent>(aboutContent);
+  const [configForm, setConfigForm] = useState<SiteConfig>(siteConfig);
+
+  useEffect(() => {
+    setAboutForm(aboutContent);
+    setConfigForm(siteConfig);
+  }, [aboutContent, siteConfig]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +52,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem,
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortfolioFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -46,19 +66,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem,
     });
 
     const base64Images = await Promise.all(base64Promises);
-    setFormData(prev => ({ ...prev, images: [...prev.images, ...base64Images] }));
+    setPortfolioForm(prev => ({ ...prev, images: [...prev.images, ...base64Images] }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+  const handleHeroFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setConfigForm(prev => ({ ...prev, heroImage: reader.result as string }));
+    reader.readAsDataURL(file);
   };
 
-  const handleEdit = (item: PortfolioItem) => {
+  const handleProfileFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setAboutForm(prev => ({ ...prev, profileImage: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const removePortfolioImage = (index: number) => {
+    setPortfolioForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const handlePortfolioEdit = (item: PortfolioItem) => {
     setEditingItem(item);
-    setFormData({
+    setPortfolioForm({
       images: [...item.images],
       category: item.category,
       title: item.title,
@@ -68,48 +102,44 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem,
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => {
+  const resetPortfolioForm = () => {
     setEditingItem(null);
-    setFormData({
+    setPortfolioForm({
       images: [],
       category: Category.LANDSCAPE,
       title: '',
       location: '',
       year: new Date().getFullYear().toString()
     });
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePortfolioSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.images.length === 0 || !formData.title) {
+    if (portfolioForm.images.length === 0 || !portfolioForm.title) {
       alert('사진과 제목은 필수입니다.');
       return;
     }
-    
-    if (editingItem) {
-      onUpdateItem({
-        ...formData,
-        id: editingItem.id
-      });
-    } else {
-      onAddItem({
-        ...formData,
-        id: Math.random().toString(36).substr(2, 9)
-      });
-    }
-    
-    resetForm();
+    if (editingItem) onUpdateItem({ ...portfolioForm, id: editingItem.id });
+    else onAddItem({ ...portfolioForm, id: Math.random().toString(36).substr(2, 9) });
+    resetPortfolioForm();
+    alert('저장되었습니다.');
+  };
+
+  const handleSettingsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateAbout(aboutForm);
+    onUpdateConfig(configForm);
+    alert('사이트 설정이 업데이트되었습니다.');
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto py-40 px-6">
+      <div className="max-w-md mx-auto py-40 px-6 fade-in">
         <form onSubmit={handleLogin} className="bg-white p-12 rounded-2xl shadow-2xl border border-stone-100">
           <div className="flex justify-center mb-8">
             <span className="w-4 h-4 rounded-full bg-nature-green animate-pulse"></span>
           </div>
-          <h2 className="text-2xl font-black mb-8 text-center uppercase tracking-widest">Admin Login</h2>
+          <h2 className="text-2xl font-black mb-8 text-center uppercase tracking-widest">Admin Access</h2>
           <div className="mb-8">
             <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-3">Password</label>
             <input
@@ -122,7 +152,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem,
             />
           </div>
           <button type="submit" className="w-full bg-stone-900 text-white py-5 rounded-lg hover:bg-nature-green transition-theme font-black uppercase tracking-[0.4em] text-xs">
-            Authenticate
+            Unlock
           </button>
         </form>
       </div>
@@ -130,193 +160,177 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ items, onAddItem, onUpdateItem,
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-24 px-6">
-      <div className="flex justify-between items-end mb-16 border-b-4 border-stone-900 pb-8">
+    <div className="max-w-7xl mx-auto py-24 px-6 fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 border-b-4 border-stone-900 pb-8 gap-8">
         <div>
-          <span className="text-xs font-black tracking-[0.4em] text-sea-blue uppercase mb-4 block">Dashboard</span>
-          <h1 className="text-5xl font-black tracking-tighter">포트폴리오 관리</h1>
+          <span className="text-xs font-black tracking-[0.4em] text-sea-blue uppercase mb-4 block">Control Center</span>
+          <h1 className="text-5xl font-black tracking-tighter">사이트 관리</h1>
         </div>
-        <button 
-          onClick={() => window.location.reload()}
-          className="text-stone-300 font-black uppercase tracking-widest text-[10px] hover:text-stone-900"
-        >
-          Logout Session
-        </button>
+        <div className="flex bg-stone-100 p-1.5 rounded-xl gap-2">
+          <button 
+            onClick={() => setActiveTab('portfolio')}
+            className={`px-8 py-3 text-[11px] font-black uppercase tracking-widest transition-theme rounded-lg ${activeTab === 'portfolio' ? 'bg-white text-nature-green shadow-sm' : 'text-stone-400'}`}
+          >
+            Portfolio
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`px-8 py-3 text-[11px] font-black uppercase tracking-widest transition-theme rounded-lg ${activeTab === 'settings' ? 'bg-white text-nature-green shadow-sm' : 'text-stone-400'}`}
+          >
+            Site Settings
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
-        {/* Form Section */}
-        <div className="lg:col-span-1">
-          <form onSubmit={handleSubmit} className="bg-white p-10 rounded-xl shadow-xl border border-stone-50 sticky top-28">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-bold uppercase tracking-tight">
-                {editingItem ? '포트폴리오 수정' : '새 포트폴리오 추가'}
-              </h3>
-              {editingItem && (
-                <button 
-                  type="button" 
-                  onClick={resetForm}
-                  className="text-[10px] font-black text-stone-300 uppercase tracking-widest hover:text-red-500 transition-theme"
-                >
-                  Cancel Edit
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2">사진 관리</label>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label 
-                  htmlFor="file-upload"
-                  className="block w-full px-4 py-8 bg-stone-50 border-2 border-dashed border-stone-200 hover:border-nature-green rounded text-center cursor-pointer transition-theme"
-                >
-                  <div className="text-stone-400 text-xs font-bold uppercase tracking-widest">
-                    클릭하여 사진 추가
-                  </div>
-                </label>
-                
-                {/* Image Previews */}
-                {formData.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2 mt-4">
-                    {formData.images.map((img, idx) => (
-                      <div key={idx} className="relative aspect-square rounded overflow-hidden border border-stone-100 group">
+      {activeTab === 'portfolio' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+          <div className="lg:col-span-1">
+            <form onSubmit={handlePortfolioSubmit} className="bg-white p-10 rounded-2xl shadow-2xl border border-stone-50 sticky top-28">
+              <h3 className="text-xl font-bold uppercase mb-8">{editingItem ? '수정' : '추가'}</h3>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">사진</label>
+                  <input type="file" ref={fileInputRef} multiple accept="image/*" onChange={handlePortfolioFileChange} className="hidden" id="p-upload" />
+                  <label htmlFor="p-upload" className="block w-full py-10 bg-stone-50 border-2 border-dashed rounded-xl text-center cursor-pointer hover:border-nature-green transition-theme">
+                    <span className="text-stone-400 text-xs font-bold">이미지 선택</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    {portfolioForm.images.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
                         <img src={img} className="w-full h-full object-cover" />
-                        <button 
-                          type="button"
-                          onClick={() => removeImage(idx)}
-                          className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold"
-                        >
-                          삭제
-                        </button>
+                        <button type="button" onClick={() => removePortfolioImage(idx)} className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 text-[10px] font-bold">삭제</button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">분류</label>
+                    <select value={portfolioForm.category} onChange={(e) => setPortfolioForm({ ...portfolioForm, category: e.target.value as Category })} className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm font-bold">
+                      {Object.values(Category).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">연도</label>
+                    <input type="text" value={portfolioForm.year} onChange={(e) => setPortfolioForm({ ...portfolioForm, year: e.target.value })} className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm font-bold" />
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2">카테고리</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
-                    className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-sea-blue focus:bg-white rounded text-sm outline-none transition-theme font-bold"
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">제목</label>
+                  <input type="text" required value={portfolioForm.title} onChange={(e) => setPortfolioForm({ ...portfolioForm, title: e.target.value })} className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm font-bold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">위치</label>
+                  <input type="text" value={portfolioForm.location} onChange={(e) => setPortfolioForm({ ...portfolioForm, location: e.target.value })} className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm font-bold" />
+                </div>
+              </div>
+              <button type="submit" className="w-full mt-10 bg-nature-green text-white py-4 rounded-xl font-black uppercase tracking-widest text-[11px] shadow-lg">저장하기</button>
+            </form>
+          </div>
+          <div className="lg:col-span-2">
+            <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-stone-50 text-stone-400 text-[10px] uppercase font-black tracking-widest">
+                  <tr>
+                    <th className="px-8 py-6">이미지</th>
+                    <th className="px-8 py-6">정보</th>
+                    <th className="px-8 py-6 text-right">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {items.map((item) => (
+                    <tr key={item.id} className="hover:bg-stone-50 group transition-theme">
+                      <td className="px-8 py-6">
+                        <div className="w-24 h-16 rounded overflow-hidden">
+                          <img src={item.images[0]} className="w-full h-full object-cover" />
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="font-bold">{item.title}</div>
+                        <div className="text-[11px] text-stone-400 font-bold uppercase">{item.category} / {item.location}</div>
+                      </td>
+                      <td className="px-8 py-6 text-right space-x-4">
+                        <button onClick={() => handlePortfolioEdit(item)} className="text-sea-blue font-black uppercase text-[10px] underline">Edit</button>
+                        <button onClick={() => onDeleteItem(item.id)} className="text-red-400 font-black uppercase text-[10px] underline">Del</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto space-y-12">
+          <form onSubmit={handleSettingsSubmit} className="bg-white p-16 rounded-3xl shadow-2xl border space-y-16">
+            {/* Hero Image Section */}
+            <div>
+              <h3 className="text-xl font-black mb-8 border-b-2 border-stone-100 pb-4">1. 홈페이지 메인(Hero) 설정</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-4">메인 배경 사진</label>
+                  <div 
+                    className="aspect-video bg-stone-50 rounded-2xl overflow-hidden cursor-pointer border-2 border-dashed border-stone-200 group"
+                    onClick={() => heroInputRef.current?.click()}
                   >
-                    {Object.values(Category).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
+                    <img src={configForm.heroImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={handleHeroFileChange} />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2">연도</label>
-                  <input
-                    type="text"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-sky-blue focus:bg-white rounded text-sm outline-none transition-theme font-bold"
-                  />
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">메인 타이틀 (줄바꿈 가능)</label>
+                    <textarea value={configForm.heroTitle} onChange={e => setConfigForm({...configForm, heroTitle: e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-bold h-24 resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">서브 타이틀</label>
+                    <textarea value={configForm.heroSubtitle} onChange={e => setConfigForm({...configForm, heroSubtitle: e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-medium text-sm h-24 resize-none" />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2">제목</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-nature-green focus:bg-white rounded text-sm outline-none transition-theme font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2">촬영 장소</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-nature-green focus:bg-white rounded text-sm outline-none transition-theme font-bold"
-                />
               </div>
             </div>
-            <button type="submit" className={`w-full mt-10 text-white py-4 rounded font-black uppercase tracking-[0.4em] text-[11px] transition-theme shadow-lg ${editingItem ? 'bg-sea-blue hover:bg-nature-green' : 'bg-nature-green hover:bg-sea-blue'}`}>
-              {editingItem ? '포트폴리오 수정하기' : '포트폴리오 저장하기'}
+
+            {/* About Artist Section */}
+            <div>
+              <h3 className="text-xl font-black mb-8 border-b-2 border-stone-100 pb-4">2. 작가 프로필(About) 설정</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-4">프로필 사진</label>
+                  <div 
+                    className="aspect-[4/5] bg-stone-50 rounded-2xl overflow-hidden cursor-pointer border-2 border-dashed border-stone-200 group"
+                    onClick={() => profileInputRef.current?.click()}
+                  >
+                    <img src={aboutForm.profileImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <input type="file" ref={profileInputRef} className="hidden" accept="image/*" onChange={handleProfileFileChange} />
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">활동명</label>
+                    <input type="text" value={aboutForm.name} onChange={e => setAboutForm({...aboutForm, name: e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-black text-2xl" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">철학 타이틀</label>
+                    <textarea value={aboutForm.philosophyTitle} onChange={e => setAboutForm({...aboutForm, philosophyTitle: e.target.value})} className="w-full p-4 bg-stone-50 rounded-xl font-bold h-24 resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">키워드 (쉼표로 구분)</label>
+                    <input type="text" value={aboutForm.keywords.join(', ')} onChange={e => setAboutForm({...aboutForm, keywords: e.target.value.split(',').map(s => s.trim())})} className="w-full p-4 bg-stone-50 rounded-xl font-bold" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">작가 상세 소개</label>
+                <textarea value={aboutForm.philosophyDescription} onChange={e => setAboutForm({...aboutForm, philosophyDescription: e.target.value})} className="w-full p-6 bg-stone-50 rounded-2xl font-medium text-stone-600 h-64 leading-relaxed" />
+              </div>
+            </div>
+
+            <button type="submit" className="w-full bg-stone-900 text-white py-6 rounded-2xl font-black uppercase tracking-widest text-[12px] shadow-2xl hover:bg-nature-green transition-theme">
+              전체 설정 업데이트
             </button>
           </form>
         </div>
-
-        {/* List Section */}
-        <div className="lg:col-span-2">
-          <div className="bg-white border border-stone-100 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-stone-50 text-stone-400 text-[10px] uppercase tracking-[0.3em] font-black">
-                <tr>
-                  <th className="px-8 py-6">Image</th>
-                  <th className="px-8 py-6">Information</th>
-                  <th className="px-8 py-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-50">
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-8 py-20 text-center text-stone-300 font-bold italic tracking-widest uppercase">No assets found</td>
-                  </tr>
-                ) : (
-                  items.map((item) => (
-                    <tr key={item.id} className={`hover:bg-stone-50 transition-theme group ${editingItem?.id === item.id ? 'bg-stone-50' : ''}`}>
-                      <td className="px-8 py-6">
-                        <div className="relative w-32 h-20">
-                          <img src={item.images[0]} alt="" className="w-full h-full object-cover rounded shadow-sm group-hover:shadow-md transition-theme ring-2 ring-transparent group-hover:ring-nature-green" />
-                          {item.images.length > 1 && (
-                            <div className="absolute -top-2 -right-2 bg-nature-green text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
-                              +{item.images.length - 1}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="font-bold text-stone-900 text-lg mb-1">
-                          {item.title}
-                          {editingItem?.id === item.id && <span className="ml-3 text-[10px] text-sea-blue uppercase tracking-widest font-black">(Editing)</span>}
-                        </div>
-                        <div className="flex gap-2 text-[11px] font-bold text-stone-400 uppercase tracking-widest">
-                          <span className="text-sea-blue">{item.category}</span>
-                          <span>/</span>
-                          <span>{item.location}</span>
-                          <span>/</span>
-                          <span>{item.year}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex flex-col items-end gap-2">
-                          <button 
-                            onClick={() => handleEdit(item)}
-                            className="text-stone-400 hover:text-sea-blue transition-theme text-[10px] font-black uppercase tracking-[0.2em] underline decoration-2"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => {
-                              if(window.confirm('정말 삭제하시겠습니까?')) onDeleteItem(item.id);
-                            }}
-                            className="text-stone-300 hover:text-red-500 transition-theme text-[10px] font-black uppercase tracking-[0.2em] underline decoration-2"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

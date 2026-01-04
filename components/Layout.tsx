@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface LayoutProps {
@@ -6,9 +7,10 @@ interface LayoutProps {
   setActiveSection: (section: string) => void;
   isAdmin: boolean;
   setIsAdmin: (val: boolean) => void;
+  siteName: string;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeSection, setActiveSection, isAdmin, setIsAdmin }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeSection, setActiveSection, isAdmin, setIsAdmin, siteName }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
@@ -28,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeSection, setActiveSecti
             onClick={() => setActiveSection('home')}
           >
             <span className="w-3 h-3 rounded-full bg-nature-green group-hover:bg-sea-blue transition-theme"></span>
-            <span>mcthejo 사진일기</span>
+            <span>{siteName} 사진일기</span>
           </div>
 
           {/* Desktop Nav */}
@@ -95,16 +97,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeSection, setActiveSecti
           <div className="text-center md:text-left">
             <div className="text-2xl font-bold tracking-tight mb-2 flex items-center justify-center md:justify-start gap-2">
               <span className="w-2 h-2 rounded-full bg-sea-blue"></span>
-              mcthejo 사진일기
+              {siteName} 사진일기
             </div>
-            <p className="text-stone-400 text-sm font-light tracking-wide">한국의 일상과 사람을 기록하는 사진가 mcthejo</p>
+            <p className="text-stone-400 text-sm font-light tracking-wide">한국의 일상과 사람을 기록하는 사진가 {siteName}</p>
           </div>
           <div className="flex space-x-10 text-sm font-bold tracking-widest text-stone-500">
             <a href="https://instagram.com/mcthejo" target="_blank" rel="noopener noreferrer" className="hover:text-nature-green transition-theme">INSTAGRAM</a>
             <a href="mailto:mchtejo89@naver.com" className="hover:text-sky-blue transition-theme">EMAIL</a>
           </div>
           <div className="text-stone-300 text-[10px] tracking-widest uppercase font-bold">
-            &copy; 2024 mcthejo. All rights reserved.
+            &copy; 2024 {siteName}. All rights reserved.
           </div>
         </div>
       </footer>

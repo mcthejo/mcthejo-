@@ -9,11 +9,25 @@ export enum Category {
 
 export interface PortfolioItem {
   id: string;
-  images: string[]; // 다중 이미지를 위한 배열로 변경
+  images: string[];
   category: Category;
   title: string;
   location: string;
   year: string;
+}
+
+export interface AboutContent {
+  profileImage: string;
+  name: string;
+  philosophyTitle: string;
+  philosophyDescription: string;
+  keywords: string[];
+}
+
+export interface SiteConfig {
+  heroImage: string;
+  heroTitle: string;
+  heroSubtitle: string;
 }
 
 export interface InquiryFormData {
