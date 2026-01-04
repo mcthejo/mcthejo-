@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import Layout from './components/Layout';
-import PortfolioGrid from './components/PortfolioGrid';
-import AdminPanel from './components/AdminPanel';
-import { INITIAL_PORTFOLIO } from './constants';
-import { PortfolioItem, Category } from './types';
+import Layout from './components/Layout.tsx';
+import PortfolioGrid from './components/PortfolioGrid.tsx';
+import AdminPanel from './components/AdminPanel.tsx';
+import { INITIAL_PORTFOLIO } from './constants.ts';
+import { PortfolioItem, Category } from './types.ts';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState('home');
